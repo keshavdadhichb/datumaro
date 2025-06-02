@@ -23,13 +23,19 @@ def upload_json():
     with open(filepath, 'r') as f:
         data = json.load(f)
 
-    label_map = {i: label['name'] for i, label in enumerate(data['categories']['label']['labels'])}
+    # Fix: correctly access label map in Datumaro format
+    if 'categories' in data and 'label' in data['categories']:
+        labels_info = data['categories']['label'].get('labels', [])
+        label_map = {label['id']: label['name'] for label in labels_info}
+    else:
+        return jsonify({'error': 'Invalid Datumaro format: "categories.label.labels" missing'}), 400
 
     used_labels = set()
     for item in data['items']:
         for ann in item.get('annotations', []):
             if 'label_id' in ann:
                 used_labels.add(ann['label_id'])
+
     used_labels = sorted(list(used_labels))
     label_names = [label_map[i] for i in used_labels]
 
@@ -76,7 +82,5 @@ def upload_json():
     return jsonify(response)
 
 if __name__ == '__main__':
-    import os
-    port = int(os.environ.get("PORT", 5000))  # Use Render's dynamic port or default to 5000
+    port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
-

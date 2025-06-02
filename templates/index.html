@@ -25,10 +25,14 @@
 <pre id="statsDisplay"></pre>
 
 <h3>Chart</h3>
+<label for="labelSelector">Choose label:</label>
+<select id="labelSelector"></select>
 <canvas id="mainChart"></canvas>
 
 <script>
   let chartRef;
+  let globalData = [];
+  let globalColumns = [];
 
   document.getElementById('uploadForm').onsubmit = async function (e) {
     e.preventDefault();
@@ -42,9 +46,19 @@
     });
 
     const json = await res.json();
+
+    if (json.error) {
+      alert("Error: " + json.error);
+      return;
+    }
+
+    globalData = json.data;
+    globalColumns = json.columns;
+
     renderTable(json.columns, json.data);
     renderStats(json.stats);
-    renderChart(json.data, json.columns);
+    populateLabelSelector();
+    renderChart(globalColumns[3]); // First label column
   };
 
   function renderTable(columns, data) {
@@ -60,16 +74,28 @@
     let txt = "";
     for (let label in stats) {
       const s = stats[label];
-      txt += `${label} → Mean: ${s.mean.toFixed(2)}, Std: ${s.std.toFixed(2)}, Min: ${s.min}, Max: ${s.max}, Total: ${s.sum}
-`;
+      txt += `${label} → Mean: ${s.mean.toFixed(2)}, Std: ${s.std.toFixed(2)}, Min: ${s.min}, Max: ${s.max}, Total: ${s.sum}\n`;
     }
     document.getElementById("statsDisplay").textContent = txt;
   }
 
-  function renderChart(data, columns) {
-    const label = columns.find(c => c !== "Image Name" && c !== "Frame Number" && c !== "Total Annotations");
-    const labels = data.map(row => row["Image Name"]);
-    const values = data.map(row => row[label]);
+  function populateLabelSelector() {
+    const select = document.getElementById("labelSelector");
+    select.innerHTML = "";
+
+    globalColumns.slice(3).forEach(label => {
+      const opt = document.createElement("option");
+      opt.value = label;
+      opt.textContent = label;
+      select.appendChild(opt);
+    });
+
+    select.onchange = () => renderChart(select.value);
+  }
+
+  function renderChart(label) {
+    const labels = globalData.map(row => row["Image Name"]);
+    const values = globalData.map(row => row[label]);
 
     if (chartRef) chartRef.destroy();
     const ctx = document.getElementById('mainChart').getContext('2d');
@@ -82,6 +108,12 @@
           data: values,
           backgroundColor: '#3498db'
         }]
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          legend: { display: false }
+        }
       }
     });
   }
