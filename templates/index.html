@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Datumaro JSON Analyzer</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body { font-family: sans-serif; padding: 2rem; background: #f2f2f2; }
+    table, th, td { border: 1px solid #ccc; border-collapse: collapse; padding: 6px; }
+    canvas { margin-top: 2rem; }
+  </style>
+</head>
+<body>
+
+<h2>Upload Datumaro JSON</h2>
+<form id="uploadForm">
+  <input type="file" id="jsonFile" name="file" accept=".json" required />
+  <button type="submit">Analyze</button>
+</form>
+
+<h3>Data Table</h3>
+<div id="tableContainer"></div>
+
+<h3>Summary Stats</h3>
+<pre id="statsDisplay"></pre>
+
+<h3>Chart</h3>
+<canvas id="mainChart"></canvas>
+
+<script>
+  let chartRef;
+
+  document.getElementById('uploadForm').onsubmit = async function (e) {
+    e.preventDefault();
+    const formData = new FormData();
+    const file = document.getElementById('jsonFile').files[0];
+    formData.append('file', file);
+
+    const res = await fetch('/upload', {
+      method: 'POST',
+      body: formData
+    });
+
+    const json = await res.json();
+    renderTable(json.columns, json.data);
+    renderStats(json.stats);
+    renderChart(json.data, json.columns);
+  };
+
+  function renderTable(columns, data) {
+    const table = `<table><thead><tr>${columns.map(c => `<th>${c}</th>`).join("")}</tr></thead><tbody>` +
+      data.map(row =>
+        `<tr>${columns.map(c => `<td>${row[c]}</td>`).join("")}</tr>`
+      ).join("") +
+      `</tbody></table>`;
+    document.getElementById("tableContainer").innerHTML = table;
+  }
+
+  function renderStats(stats) {
+    let txt = "";
+    for (let label in stats) {
+      const s = stats[label];
+      txt += `${label} → Mean: ${s.mean.toFixed(2)}, Std: ${s.std.toFixed(2)}, Min: ${s.min}, Max: ${s.max}, Total: ${s.sum}
+`;
+    }
+    document.getElementById("statsDisplay").textContent = txt;
+  }
+
+  function renderChart(data, columns) {
+    const label = columns.find(c => c !== "Image Name" && c !== "Frame Number" && c !== "Total Annotations");
+    const labels = data.map(row => row["Image Name"]);
+    const values = data.map(row => row[label]);
+
+    if (chartRef) chartRef.destroy();
+    const ctx = document.getElementById('mainChart').getContext('2d');
+    chartRef = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels,
+        datasets: [{
+          label,
+          data: values,
+          backgroundColor: '#3498db'
+        }]
+      }
+    });
+  }
+</script>
+
+</body>
+</html>
