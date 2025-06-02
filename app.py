@@ -26,7 +26,7 @@ def upload_json():
     # Fix: correctly access label map in Datumaro format
     if 'categories' in data and 'label' in data['categories']:
         labels_info = data['categories']['label'].get('labels', [])
-        label_map = {label['id']: label['name'] for label in labels_info}
+        label_map = {i: label['name'] for i, label in enumerate(labels_info)}
     else:
         return jsonify({'error': 'Invalid Datumaro format: "categories.label.labels" missing'}), 400
 
